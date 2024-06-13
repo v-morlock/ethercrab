@@ -6,7 +6,7 @@ use crate::{
 };
 use core::{mem::MaybeUninit, task::Waker};
 use io_uring::{opcode, IoUring};
-pub use ioprio::Priority;
+use ioprio::Priority;
 use smallvec::{smallvec, SmallVec};
 use std::{
     io,

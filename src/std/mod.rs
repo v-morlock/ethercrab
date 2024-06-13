@@ -14,3 +14,5 @@ pub use unix::{ethercat_now, tx_rx_task};
 // io_uring is Linux-only
 #[cfg(target_os = "linux")]
 pub use io_uring::tx_rx_task_io_uring;
+#[cfg(target_os = "linux")]
+pub use ioprio::Priority;

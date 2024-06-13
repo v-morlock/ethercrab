@@ -91,6 +91,10 @@ pub fn tx_rx_task_io_uring<'sto>(
         };
 
         ring.submitter().register_iowq_aff(&cpu_mask)?;
+        ring.submitter().register_iowq_max_workers(&mut [
+            core_affinity.len() as u32,
+            core_affinity.len() as u32,
+        ])?;
     }
 
     let mut high_water_mark = 0;

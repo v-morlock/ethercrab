@@ -15,4 +15,4 @@ pub use unix::{ethercat_now, tx_rx_task};
 #[cfg(target_os = "linux")]
 pub use io_uring::tx_rx_task_io_uring;
 #[cfg(target_os = "linux")]
-pub use ioprio::Priority;
+pub use ioprio::{BePriorityLevel, Class, Priority, RtPriorityLevel};

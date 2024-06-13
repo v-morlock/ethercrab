@@ -73,7 +73,7 @@ pub fn tx_rx_task_io_uring<'sto>(
 
     // SAFETY: Max entries is 256 because `PduStorage::N` is checked to be in 0..u8::MAX, and will
     // eventually be a `u8` once const generics get there. Twice as much space is reserved as each
-    // frame requires a send _and_ receive buffer.
+
     //
     // This data MUST NOT MOVE or be reordered once created as io_uring holds pointers into it.
     let mut bufs: slab::Slab<(io_uring::squeue::Entry, SmallVec<[u8; 1518]>)> =
@@ -156,13 +156,17 @@ pub fn tx_rx_task_io_uring<'sto>(
                 smallvec![0; mtu],
             ));
 
-            *rx_entry = opcode::Read::new(
+            let mut code = opcode::Read::new(
                 io_uring::types::Fd(socket.as_raw_fd()),
                 rx_buf.as_mut_ptr() as _,
                 rx_buf.len() as _,
-            )
-            .build()
-            .user_data(rx_key as u64);
+            );
+
+            if let Some(ioprio) = ioprio {
+                code = code.ioprio(ioprio.inner());
+            }
+
+            *rx_entry = code.build().user_data(rx_key as u64);
 
             fmt::trace!(
                 "Insert frame TX {:#04x}, key {}, RX key {}",

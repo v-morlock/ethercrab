@@ -6,6 +6,7 @@ use crate::{
 };
 use core::{mem::MaybeUninit, task::Waker};
 use io_uring::{opcode, IoUring};
+use ioprio::Priority;
 use smallvec::{smallvec, SmallVec};
 use std::{
     io,
@@ -54,6 +55,8 @@ pub fn tx_rx_task_io_uring<'sto>(
     interface: &str,
     mut pdu_tx: PduTx<'sto>,
     mut pdu_rx: PduRx<'sto>,
+    ioprio: Option<Priority>,
+    core_affinity: Option<&[usize]>,
 ) -> Result<(), io::Error> {
     let mut socket = RawSocketDesc::new(interface)?;
 
@@ -78,6 +81,18 @@ pub fn tx_rx_task_io_uring<'sto>(
 
     let mut ring = IoUring::new(ENTRIES as u32)?;
 
+    if let Some(core_affinity) = core_affinity {
+        let cpu_mask: libc::cpu_set_t = unsafe {
+            let mut cpu_mask = std::mem::zeroed();
+            for i in core_affinity.iter() {
+                libc::CPU_SET(*i, &mut cpu_mask);
+            }
+            cpu_mask
+        };
+
+        ring.submitter().register_iowq_aff(&cpu_mask)?;
+    }
+
     let mut high_water_mark = 0;
 
     let signal = Arc::new(ParkSignal::new());
@@ -100,15 +115,21 @@ pub fn tx_rx_task_io_uring<'sto>(
 
             frame
                 .send_blocking(|data: &[u8]| {
-                    *tx_entry = opcode::Write::new(
+                    let mut code = opcode::Write::new(
                         io_uring::types::Fd(socket.as_raw_fd()),
                         data.as_ptr(),
                         data.len() as _,
-                    )
-                    .build()
-                    // Distinguish sent frames from received frames by using the upper bit of
-                    // the user data as a flag.
-                    .user_data(tx_key as u64 | WRITE_MASK);
+                    );
+
+                    if let Some(ioprio) = ioprio {
+                        code = code.ioprio(ioprio.inner());
+                    }
+
+                    *tx_entry = code
+                        .build()
+                        // Distinguish sent frames from received frames by using the upper bit of
+                        // the user data as a flag.
+                        .user_data(tx_key as u64 | WRITE_MASK);
 
                     // TODO: Zero copy
                     tx_buf[0..data.len()].copy_from_slice(data);

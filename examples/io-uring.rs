@@ -20,6 +20,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
         std::{ethercat_now, tx_rx_task_io_uring},
         Client, ClientConfig, PduStorage, SlaveGroup, Timeouts,
     };
+    use ioprio::{Priority, RtPriorityLevel};
     use std::{
         sync::Arc,
         thread,
@@ -101,7 +102,16 @@ fn main() -> Result<(), ethercrab::error::Error> {
                 .expect("Set TX/RX thread core");
 
             // Blocking io_uring
-            tx_rx_task_io_uring(&interface, tx, rx).expect("TX/RX task");
+            tx_rx_task_io_uring(
+                &interface,
+                tx,
+                rx,
+                Some(Priority::new(ioprio::Class::Realtime(
+                    RtPriorityLevel::highest(),
+                ))),
+                Some(&[tx_rx_core.id]),
+            )
+            .expect("TX/RX task");
         })
         .unwrap();
 

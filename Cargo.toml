@@ -52,6 +52,7 @@ nix = { version = "0.28.0", features = ["net"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = "0.6.3"
+ioprio = "0.2.0"
 smallvec = { version = "1.13.1", features = ["const_generics"] }
 slab = "0.4.9"
 timerfd = "1.5.0"
